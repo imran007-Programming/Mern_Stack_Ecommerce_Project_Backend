@@ -1,0 +1,28 @@
+# Exported from Render on 2024-04-22T06:08:04Z
+services:
+- type: web
+  name: Emart-backend-1
+  runtime: node
+  repo: https://github.com/narrow-space/Emart-backend
+  plan: starter
+  envVars:
+  - key: CLOUDENARY_API_SECRET
+    sync: false
+  - key: CLOUDENARY_APIKEY
+    sync: false
+  - key: CLOUDENARY_CLOUD
+    sync: false
+  - key: USER_SECRET_KEY
+    sync: false
+  - key: ADMIN_SECRET_KEY
+    sync: false
+  - key: PASSWORD
+    sync: false
+  - key: EMAIL
+    sync: false
+  - key: DATABASE
+    sync: false
+  region: oregon
+  buildCommand: yarn
+  startCommand: npm run start
+version: "1"
