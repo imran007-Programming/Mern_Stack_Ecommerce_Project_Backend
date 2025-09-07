@@ -10,43 +10,49 @@ const { transporter } = require("../../helper");
 const express = require("express");
 
 
+
 ///user registration Controler
 exports.Register = async (req, res) => {
-  const { firstname, lastname, email, password, confirmPassword, } = req.body;
+  const { firstname, lastname, email, password, confirmPassword } = req.body;
 
   if (!firstname || !lastname || !email || !password || !confirmPassword || !req.file) {
-    res.status(400).json({ error: "all fields are required" });
+    return res.status(400).json({ error: "All fields are required" });
   }
-  const file = req.file?.path;
 
-
-  const upload = await cloudinary.uploader.upload(file);
   try {
-    const exsitUser = await userDb.findOne({ email: email });
+    // Use the same Cloudinary helper as category
+    const filename = `user-${Date.now()}.${req.file.originalname.split(".").pop()}`;
+    const upload = await cloudinary.uploadToCloudinary(req.file.buffer, filename);
 
+
+    // Check if user already exists
+    const exsitUser = await userDb.findOne({ email });
     if (exsitUser) {
-      const filename = req.file?.filename;
-      const filepath = `useruploads/${filename}`
-      fs.unlink(filepath, (err) => {
-        res.end()
-      });
-      res.status(400).json({ error: "User Already Exist" });
+      return res.status(400).json({ error: "User Already Exist" });
+    }
 
-    } else if (password !== confirmPassword) {
-      res.status(400).json({ error: "password and confirmpassword not matched" });
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Password and confirmPassword not matched" });
     }
-    else {
-      const userData = new userDb({
-        firstname, lastname, email, password,
-        userprofile: upload.secure_url,
-      });
-      await userData.save();
-      res.status(200).json(userData);
-    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // Save user
+    const userData = new userDb({
+      firstname,
+      lastname,
+      email,
+      password: hashedPassword,
+      userprofile: upload.secure_url, // Cloudinary image
+    });
+
+    await userData.save();
+    res.status(200).json(userData);
   } catch (error) {
-    res.status(400).json(error);
+    res.status(400).json({ error: error.message });
   }
-}
+};
 
 
 

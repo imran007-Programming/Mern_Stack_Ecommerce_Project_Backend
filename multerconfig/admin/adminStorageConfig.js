@@ -1,6 +1,6 @@
 const multer = require("multer");
 
-const storage = multer.memoryStorage(); // Store the file in memory instead of disk
+const storage = multer.memoryStorage(); 
 
 const fileFilter = (req, file, callback) => {
   if (

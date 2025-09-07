@@ -6,6 +6,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDENARY_API_SECRET,
 });
 
+/* upload to clodinary */
 const uploadToCloudinary = async (fileBuffer, filename) => {
   const { Readable } = require('stream');
   const stream = Readable.from(fileBuffer);
@@ -18,6 +19,7 @@ const uploadToCloudinary = async (fileBuffer, filename) => {
       },
       (error, result) => {
         if (error) {
+          
           reject(error);
         } else {
           resolve(result);
@@ -28,4 +30,14 @@ const uploadToCloudinary = async (fileBuffer, filename) => {
   });
 };
 
-module.exports = { uploadToCloudinary };
+// ✅ Delete image by publicId
+const deleteFromCloudinary = async (publicId) => {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId);
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+module.exports = { uploadToCloudinary, deleteFromCloudinary };

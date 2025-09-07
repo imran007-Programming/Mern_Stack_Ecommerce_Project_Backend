@@ -48,12 +48,12 @@ const adminSchema = new mongoose.Schema({
 }, { timestamps: true });
 ///pasword hasing
 
-adminSchema.pre("save", async function (next) {
-  if (this.isModified("password")) {
-    this.password = await bcrypt.hash(this.password, 12);
-  }
-  next();
-});
+// adminSchema.pre("save", async function (next) {
+//   if (this.isModified("password")) {
+//     this.password = await bcrypt.hash(this.password, 12);
+//   }
+//   next();
+// });
 
 //token genarate//
 

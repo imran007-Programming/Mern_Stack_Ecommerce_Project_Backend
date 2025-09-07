@@ -3,42 +3,39 @@ const cloudinary = require("../../cloudinary/cloudinary");
 const productDb = require("../../model/product/productModel");
 const reviewDb = require("../../model/product/ProductReviewModal");
 const fs = require("fs");
-const brandDb = require("../../model/product/productBrandmodal")
-const { ObjectId } = require('mongodb');
+const brandDb = require("../../model/product/productBrandmodal");
+const { ObjectId } = require("mongodb");
 const bannerDb = require("../../model/BannerImages/BannerImages");
-
+const { default: mongoose } = require("mongoose");
+const { deleteFromCloudinary } = require('../../cloudinary/cloudinary'); 
 exports.Addcategory = async (req, res) => {
-  const { categoryName, description, } = req.body;
-  const file = req.file ? req.file?.path : "";
-
-
-  if (!categoryName || !description || !file) {
-    res.status(400).json({ error: "All field Required" });
-  }
-
-
   try {
-    const upload = await cloudinary.uploader.upload(file);
+    const { categoryName, description } = req.body;
+    const file = req.file;
 
-    const existingCategory = await categorydb.findOne({
-      categoryName: categoryName,
+    if (!categoryName || !description || !file) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Upload to Cloudinary directly from buffer
+    const filename = `category-${Date.now()}-${file.originalname}`;
+    const upload = await cloudinary.uploadToCloudinary(file.buffer, filename);
+
+    const existingCategory = await categorydb.findOne({ categoryName });
+    if (existingCategory) {
+      return res.status(400).json({ error: "This category already exists" });
+    }
+
+    const addCategory = new categorydb({
+      categoryName,
+      description,
+      catimage: upload.secure_url, // ✅ now saving the uploaded URL
     });
 
-    if (existingCategory) {
-
-      res.status(400).json({ error: "This category is already exsist" });
-    } else {
-      const addCategory = new categorydb({
-        categoryName,
-        description,
-        catimage: upload.secure_url,
-      });
-      
-      await addCategory.save();
-      res.status(200).json(addCategory);
-    }
+    await addCategory.save();
+    res.status(200).json(addCategory);
   } catch (error) {
-    res.status(400).json(error);
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -50,51 +47,46 @@ exports.AddBrand = async (req, res) => {
   }
 
   try {
-    const brandfound = await brandDb.findOne({ name })
+    const brandfound = await brandDb.findOne({ name });
     if (brandfound) {
       res.status(400).json({
-        error: "brand already exsist"
-      })
+        error: "brand already exsist",
+      });
     } else {
       const addBrand = new brandDb({
-        name
+        name,
       });
       await addBrand.save();
       res.status(200).json(addBrand);
     }
   } catch (error) {
     res.status(400).json(error);
-
   }
-}
+};
 
 ///get a brand//
 exports.getBrand = async (req, res) => {
   try {
-    const getAllbrand = await brandDb.find();
+    const getAllbrand = await brandDb.find({});
     res.status(200).json(getAllbrand);
   } catch (error) {
     res.status(400).json(error);
   }
-
-}
+};
 ///get a single brand//
 exports.getsingleBrand = async (req, res) => {
-
   try {
     const getabrand = await brandDb.findById(req.params.id);
     res.status(200).json(getabrand);
   } catch (error) {
     res.status(400).json(error);
   }
-
-}
-
+};
 
 ///getCategory//
 exports.Getcategory = async (req, res) => {
   try {
-    const getAllCategory = await categorydb.find();
+    const getAllCategory = await categorydb.find({});
     res.status(200).json(getAllCategory);
   } catch (error) {
     res.status(400).json(error);
@@ -104,12 +96,32 @@ exports.Getcategory = async (req, res) => {
 ////Addproduct
 exports.Addproducts = async (req, res) => {
   const { categoryid } = req.query;
-  const { productName, price, discount, quantity, description, type, sizes, colors, brand } = req.body;
-
+  const {
+    productName,
+    price,
+    discount,
+    quantity,
+    description,
+    type,
+    sizes,
+    colors,
+    brand,
+  } = req.body;
   const file = req.files;
 
-  if (!productName || !price || !discount || !quantity || !description || !brand || !categoryid || !file) {
-    return res.status(400).json({ error: "All fields and product images are required" });
+  if (
+    !productName ||
+    !price ||
+    !discount ||
+    !quantity ||
+    !description ||
+    !brand ||
+    !categoryid ||
+    !file
+  ) {
+    return res
+      .status(400)
+      .json({ error: "All fields and product images are required" });
   }
 
   try {
@@ -117,13 +129,14 @@ exports.Addproducts = async (req, res) => {
 
     for (let i = 0; i < file.length; i++) {
       const fileBuffer = file[i].buffer;
-      const filename = `image-${Date.now()}-${file[i].originalname.split('.').pop()}`;
-
+      const filename = `product-${Date.now()}-${i}.${file[i].originalname
+        .split(".")
+        .pop()}`;
       const result = await cloudinary.uploadToCloudinary(fileBuffer, filename);
       imageUrlList.push(result.secure_url);
     }
 
-    // Product creation logic here
+    // 1. Create new product
     const newProduct = new productDb({
       productName,
       price,
@@ -137,16 +150,32 @@ exports.Addproducts = async (req, res) => {
       brand,
       images: imageUrlList,
     });
+   
+    const savedProduct = await newProduct.save();
 
-    await newProduct.save();
+    // 2. Push the product into the category's "products" array
+    await categorydb.findByIdAndUpdate(
+      categoryid,
+      {
+        $push: { products: savedProduct },
+        $addToSet: { brands: brand },
+      },
+      { new: true }
+    );
 
-    res.status(200).json(newProduct);
+    /* Add the product brandDb also */
+    // await brandDb.findByIdAndUpdate(
+    //   brand,
+    //   { $push: { products: savedProduct } },
+    //   { new: true }
+    // );
+
+    res.status(200).json(savedProduct);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
 
- 
 exports.findSimilarProducts = async (req, res) => {
   const { productid } = req.params;
 
@@ -160,41 +189,35 @@ exports.findSimilarProducts = async (req, res) => {
     // Define criteria for finding similar products
     const criteria = {
       categoryid: product.categoryid, // Similar category
-      _id: { $ne: productid } // Exclude the current product ID
-     
+      _id: { $ne: productid }, // Exclude the current product ID
     };
 
     // Query the database for similar products
-    const similarProducts = await productDb.find(criteria)// Limit the number of results to 5
- 
+    const similarProducts = await productDb.find(criteria); // Limit the number of results to 5
+
     res.status(200).json(similarProducts);
   } catch (error) {
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-
-
-
-
-
-
- ///Delete Products controler
+///Delete Products controler
 exports.Deleteproducts = async (req, res) => {
   const { productid } = req.params;
-  console.log(productid)
-  try {
-    // Find the product to be deleted
-    const deletedProduct = await productDb.findById(productid);
 
+  try {
+    // Step 1: Find the product to be deleted
+    const deletedProduct = await productDb.findById(productid);
     if (!deletedProduct) {
       return res.status(404).json({ error: "Product not found" });
     }
 
-    // Remove product reference from its associated category
+    const productObjectId = new mongoose.Types.ObjectId(productid);
+
+    // Step 2: Remove product from category
     const categoryFound = await categorydb.findOneAndUpdate(
-      { products: { $in: [productid] } }, // Find the category that contains the product
-      { $pull: { products: productid } }, // Pull the product reference from the category's products array
+      { "products._id": productObjectId },
+      { $pull: { products: { _id: productObjectId } } },
       { new: true }
     );
 
@@ -202,10 +225,27 @@ exports.Deleteproducts = async (req, res) => {
       return res.status(404).json({ error: "Category not found" });
     }
 
-    // Delete the product
+    // Step 3: Check if the brand still has other products in this category
+    const stillHasBrand = await productDb.exists({
+      categoryid: categoryFound._id,
+      brand: deletedProduct.brand,
+      _id: { $ne: productid }, // ignore the one we’re deleting
+    });
+
+    if (!stillHasBrand) {
+      // Step 4: Remove brand from category if no products left with that brand
+      await categorydb.findByIdAndUpdate(categoryFound._id, {
+        $pull: { brands: deletedProduct.brand },
+      });
+    }
+
+    // Step 5: Delete product from productDb
     await productDb.findByIdAndDelete(productid);
 
-    res.status(200).json({ message: "Product deleted successfully" });
+    res.status(200).json({
+      message: "Product deleted successfully",
+      category: categoryFound,
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -213,14 +253,9 @@ exports.Deleteproducts = async (req, res) => {
 
 
 
-
-
-
 ///Search products///
 exports.SearchProducts = async (req, res) => {
   try {
-
-
     let productquery = productDb.find();
     //search by name//
     if (req.query.productName) {
@@ -236,24 +271,15 @@ exports.SearchProducts = async (req, res) => {
       results: searchproduct.length,
       message: "products fetch sucessfully",
       searchproduct,
-
-
     });
-
   } catch (error) {
-    res.status(400).json({ error: error.message })
+    res.status(400).json({ error: error.message });
   }
-
-}
-
-
+};
 
 ////Get PRoducts
 exports.Getproduct = async (req, res) => {
-
-  let productquery = productDb.find();
-
-
+  let productquery = productDb.find({});
 
   //Filter by category//
   if (req.query.categoryId !== "all" && req.query.categoryId) {
@@ -262,8 +288,6 @@ exports.Getproduct = async (req, res) => {
     });
   }
 
-  
-  
   //Filter by color//
   if (req.query.color) {
     productquery = productquery.find({
@@ -273,7 +297,7 @@ exports.Getproduct = async (req, res) => {
 
   //Filter by brand//
   if (req.query.brand) {
-    console.log("currentbrand",req.query.brand)
+   
     productquery = productquery.find({
       brand: { $regex: req.query.brand, $options: "i" },
     });
@@ -281,36 +305,34 @@ exports.Getproduct = async (req, res) => {
 
   //Filter by sizes//
   if (req.query.sizes) {
-    console.log("currentsizes",req.query.sizes)
+   
     productquery = productquery.find({
       sizes: { $regex: req.query.sizes, $options: "i" },
     });
   }
   //Filter by price range//
   if (req.query.price) {
-    const priceRange = req.query.price.split('-')
+    const priceRange = req.query.price.split("-");
     // console.log("currentpricerange:",priceRange)
 
     productquery = productquery.find({
-      price: { $gte: priceRange[0], $lte: priceRange[1] }
-    })
+      price: { $gte: priceRange[0], $lte: priceRange[1] },
+    });
   }
 
   ///sort by//
-  if (req.query.sortBy === 'priceLowToHigh') {
+  if (req.query.sortBy === "priceLowToHigh") {
     productquery = productquery.sort({ price: 1 }); // 1 for ascending order
-  } else if (req.query.sortBy === 'priceHighToLow') {
+  } else if (req.query.sortBy === "priceHighToLow") {
     productquery = productquery.sort({ price: -1 }); // -1 for descending order
   }
 
-
   // Sort by creation date
-  if (req.query.sortBy === 'newest') {
+  if (req.query.sortBy === "newest") {
     productquery = productquery.sort({ createdAt: -1 }); // -1 for descending order
-  } else if (req.query.sortBy === 'oldest') {
+  } else if (req.query.sortBy === "oldest") {
     productquery = productquery.sort({ createdAt: 1 }); // 1 for ascending order
   }
-
 
   /// products pagination//
   //page
@@ -318,19 +340,18 @@ exports.Getproduct = async (req, res) => {
   //startIndex//
   //endindex//
   ///totalproduct/
-  const page = parseInt(req.query.page) ? parseInt(req.query.page) : 1
+  const page = parseInt(req.query.page) ? parseInt(req.query.page) : 1;
   //limit
   const limit = parseInt(req.query.limit) ? parseInt(req.query.limit) : 20;
 
   ///startIndex//
-  const skip = (page - 1) * limit
+  const skip = (page - 1) * limit;
   //endindex//
 
-
   ///totalproduct//
-  const count = await productDb.countDocuments()
+  const count = await productDb.countDocuments();
   const pageCount = Math.ceil(count / limit);
-  productquery = productquery.skip(skip).limit(limit)
+  productquery = productquery.skip(skip).limit(limit);
 
   ////await the query//
   const products = await productquery;
@@ -339,33 +360,30 @@ exports.Getproduct = async (req, res) => {
     results: products.length,
     count,
     Pagination: {
-      totalProducts: count, pageCount
+      totalProducts: count,
+      pageCount,
     },
     message: "products fetch sucessfully",
     products,
-
-
   });
-
 };
-
-
 
 ///reset product filter///
 exports.resetProductsByCategory = async (req, res) => {
   try {
     const categoryId = req.query.categoryId;
 
-    
     if (!categoryId) {
-      return res.status(400).json({ status: 'error', message: 'Category ID is required' });
+      return res
+        .status(400)
+        .json({ status: "error", message: "Category ID is required" });
     }
 
     let productquery = productDb.find({ categoryId });
 
     // Products pagination
-    const page = 1; 
-    const limit = 20; 
+    const page = 1;
+    const limit = 20;
 
     // Start index
     const skip = (page - 1) * limit;
@@ -379,40 +397,31 @@ exports.resetProductsByCategory = async (req, res) => {
     // Await the query
     const products = await productquery;
     res.json({
-      status: 'success',
+      status: "success",
       results: products.length,
       count,
       Pagination: {
         totalProducts: count,
         pageCount,
       },
-      message: 'Products fetched successfully with default settings',
+      message: "Products fetched successfully with default settings",
       products,
     });
   } catch (error) {
     res.status(500).json({
-      status: 'error',
+      status: "error",
       message: error.message,
     });
   }
 };
 
-
-
-
 ///Update Products///
 
 exports.updateProduct = async (req, res) => {
-
-
-
-
   try {
     // Extract necessary data from the request
     const { productId } = req.params;
     const { categoryid: newCategoryId } = req.query;
-
-
 
     const {
       productName,
@@ -424,22 +433,17 @@ exports.updateProduct = async (req, res) => {
       sizes,
       colors,
       brand,
-
-
     } = req.body;
-
-
-
-
 
     // Upload new images to Cloudinary and update the image URLs
 
-    const file = req.files ? req.files : "";
-
+    const files = req.files || [];
     const imageUrlList = [];
-    for (let i = 0; i < file.length; i++) {
-      const locaFilePath = file[i].path;
-      const result = await cloudinary.uploader.upload(locaFilePath);
+
+    for (let i = 0; i < files.length; i++) {
+      const fileBuffer = files[i].buffer;
+      const filename = `product-${Date.now()}-${files[i].originalname}`;
+      const result = await cloudinary.uploadToCloudinary(fileBuffer, filename);
       imageUrlList.push(result.secure_url);
     }
     // Prepare the updated product data based on the fields provided in the request
@@ -455,39 +459,38 @@ exports.updateProduct = async (req, res) => {
     if (brand) updatedProductData.brand = brand;
     if (newCategoryId) updatedProductData.categoryid = newCategoryId;
 
-
     // Get the current product data from the database
     const Exsistproduct = await productDb.findById(productId);
 
     // Filter out the images that are not already in the database
-    const newImages = imageUrlList.filter(imageUrl => !Exsistproduct.images.includes(imageUrl));
+    const newImages = imageUrlList.filter(
+      (imageUrl) => !Exsistproduct.images.includes(imageUrl)
+    );
 
     // Update the images array only if there are new images
     if (newImages.length > 0) {
       updatedProductData.images = [...Exsistproduct.images, ...newImages];
     }
 
-    const product = await productDb.findByIdAndUpdate(productId, updatedProductData,
+    const product = await productDb.findByIdAndUpdate(
+      productId,
+      updatedProductData,
       {
         new: true,
         runValidators: true,
-      })
+      }
+    );
     // await categorydb.findOneAndUpdate(
     //   { products: productId },
     //   { $pull: { products: productId } }
     // );
-
 
     // await categorydb.findByIdAndUpdate(
     //   newCategoryId,
     //   { $addToSet: { products: productId } }
     // )
 
-
-
-
-    res.status(200).json(product)
-
+    res.status(200).json(product);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -495,27 +498,29 @@ exports.updateProduct = async (req, res) => {
 
 ///delete images//
 
+
+
 exports.deleteimages = async (req, res) => {
-
-
   try {
-    const { productId, imageUrl } = req.body; // Get productId and imageUrl from the request body
+    const { productId, imageUrl } = req.body;
 
-    // First, delete the image from Cloudinary
-    const publicId = imageUrl.split('/').pop().split('.')[0]; // Extract public ID from the image URL
-    await cloudinary.uploader.destroy(publicId); // Delete the image from Cloudinary
+    // Extract public ID properly
+    const parts = imageUrl.split('/');
+    const fileName = parts.pop().split('.')[0];
+    const folderPath = parts.slice(parts.indexOf('productimages')).join('/');
+    const publicId = `${folderPath}/${fileName}`;
 
-    // Next, find the product and remove the image URL from its images array
+    // Delete from Cloudinary
+    await deleteFromCloudinary(publicId);
+
+
+    // Update product
     const product = await productDb.findById(productId);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    // Remove the imageUrl from the images array
-    const updatedImages = product.images.filter(img => img !== imageUrl);
-
-    // Update the product with the new images array
-    product.images = updatedImages;
+    product.images = product.images.filter((img) => img !== imageUrl);
     await product.save();
 
     res.status(200).json({ message: 'Image deleted successfully' });
@@ -523,9 +528,7 @@ exports.deleteimages = async (req, res) => {
     console.error('Error deleting image:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-}
-
-
+};
 
 
 
@@ -550,11 +553,10 @@ exports.NewArival = async (req, res) => {
   }
 };
 
-
 ///Customer Review Controler//
 exports.ProductReview = async (req, res) => {
   const { productid } = req.params;
-  const { username, description, rating,avatar } = req.body;
+  const { username, description, rating, avatar } = req.body;
 
   if (!username || !description || !rating || !productid) {
     res.status(400).json({ error: "All field Require" });
@@ -566,7 +568,7 @@ exports.ProductReview = async (req, res) => {
       username,
       description,
       rating,
-      avatar
+      avatar,
     });
     await productReviews.save(productReviews);
 
@@ -581,6 +583,15 @@ exports.GetproductReview = async (req, res) => {
   const { productid } = req.params;
   try {
     const getreview = await reviewDb.find({ productid: productid });
+    res.status(200).json(getreview);
+  } catch (error) {
+    res.status(400).json(error);
+  }
+};
+
+exports.GetAllReview = async (req, res) => {
+  try {
+    const getreview = await reviewDb.find({});
     res.status(200).json(getreview);
   } catch (error) {
     res.status(400).json(error);
@@ -604,34 +615,46 @@ exports.DeleteproductReview = async (req, res) => {
 ///add banner Images//
 exports.addBannerImages = async (req, res) => {
   const file = req.files ? req.files : "";
-  
+
   try {
+    // const imageUrlList = [];
+    // for (let i = 0; i < file.length; i++) {
+    //   const locaFilePath = file[i].path;
+
+    //   const result = await cloudinary.uploader.upload(locaFilePath);
+
+    //   imageUrlList.push(result.secure_url);
+    // }
+
+
     const imageUrlList = [];
+
     for (let i = 0; i < file.length; i++) {
-      const locaFilePath = file[i].path;
-
-      const result = await cloudinary.uploader.upload(locaFilePath);
-
-      imageUrlList.push(result.secure_url)
+      const fileBuffer = file[i].buffer;
+      const filename = `banner-${Date.now()}-${i}.${file[i].originalname
+        .split(".")
+        .pop()}`;
+      const result = await cloudinary.uploadToCloudinary(fileBuffer, filename);
+      imageUrlList.push(result.secure_url);
     }
+
+
     const addBanner = new bannerDb({
-      images: imageUrlList
-    })
-    await addBanner.save()
-    res.status(200).json(addBanner)
-
+      images: imageUrlList,
+    });
+    await addBanner.save();
+    res.status(200).json(addBanner);
   } catch (error) {
-    res.status(400).json(error)
+    res.status(400).json(error);
   }
-}
-
+};
 
 ///Get banner Images//
 exports.getBannerImages = async (req, res) => {
   try {
-    const getAllbannerImages = await bannerDb.find();
+    const getAllbannerImages = await bannerDb.find({});
     res.status(200).json(getAllbannerImages);
   } catch (error) {
     res.status(400).json(error);
   }
-}
+};

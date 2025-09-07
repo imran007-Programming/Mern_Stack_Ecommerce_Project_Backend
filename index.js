@@ -4,7 +4,11 @@ const app = express();
 const cors = require("cors")
 const port =process.env.PORT||4001;
 require("./db/connection.js")
-app.use(cors())
+
+// Configure CORS to allow only the specified origin
+app.use(cors({
+  origin: process.env.FRONTEND_URL,  // Set the specific allowed origin
+}));
 app.use(express.json())
 
 //admin Routes

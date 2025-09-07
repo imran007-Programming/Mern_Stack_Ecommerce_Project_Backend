@@ -20,11 +20,11 @@ const productCategorySchema = new mongoose.Schema(
       required: true,
     },
 
-    brands: [
-      { 
-      type: Object,
-      
-      ref: "ProductBrand" }], // Reference to Brand model
+       brands: [
+      {
+        type: String,
+      },
+    ], 
   },
 
   { timestamps: true }
@@ -34,3 +34,6 @@ const productCategorySchema = new mongoose.Schema(
 const categorydb = new mongoose.model("categoryModels", productCategorySchema);
 
 module.exports = categorydb;
+
+
+

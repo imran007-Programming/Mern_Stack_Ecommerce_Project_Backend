@@ -1,80 +1,53 @@
-const cloudinary = require("../../cloudinary/cloudinary"); // Import Cloudinary configuration
-const adminDb = require("../../model/admin/adminModal"); // Admin database model
-const bcrypt = require("bcrypt");
-const fs = require("fs"); // For file removal after failed upload
 
-// Register Controller
+const adminDb = require("../../model/admin/adminModal"); 
+const bcrypt = require("bcrypt");
+const fs = require("fs"); 
+
+//const bcrypt = require("bcrypt");
+
+const cloudinary = require("../../cloudinary/cloudinary");
+
 exports.Register = async (req, res) => {
   const { firstname, lastname, email, password, confirmPassword } = req.body;
-  const file = req.file;  // Multer will handle the profile image file
 
-  // Ensure all fields are filled
-  if (
-    !firstname ||
-    !lastname ||
-    !email ||
-    !password ||
-    !confirmPassword ||
-    !file
-  ) {
+  if (!firstname || !lastname || !email || !password || !confirmPassword || !req.file) {
     return res.status(400).json({ error: "All fields are required" });
   }
 
-  // Upload the profile image to Cloudinary
   try {
-    const uploadResult = await cloudinary.uploader.upload_stream(
-      {
-        folder: "adminprofiles", // Folder name in Cloudinary
-        public_id: `admin-${Date.now()}`, // Custom public ID based on timestamp
-      },
-      async (error, result) => {
-        if (error) {
-          return res.status(500).json({ error: "Error uploading to Cloudinary" });
-        }
+    // Generate filename like category
+    const filename = `admin-${Date.now()}.${req.file.originalname.split(".").pop()}`;
+    const upload = await cloudinary.uploadToCloudinary(req.file.buffer, filename);
 
-        // Check if admin already exists
-        const existingAdmin = await adminDb.findOne({ email });
-        if (existingAdmin) {
-          // If the admin already exists, remove the uploaded file
-          const filename = req.file.filename;
-          const filepath = `adminuploads/${filename}`;
-          fs.unlink(filepath, (err) => {
-            if (err) {
-              console.log("Error deleting file: ", err);
-            }
-          });
-          return res.status(400).json({ error: "Admin already exists" });
-        } else if (password !== confirmPassword) {
-          return res.status(400).json({ error: "Password and Confirm Password do not match" });
-        } else {
-          // Hash the password before saving to DB
-          const hashedPassword = await bcrypt.hash(password, 10);
+    // Check if admin already exists
+    const existingAdmin = await adminDb.findOne({ email });
+    if (existingAdmin) {
+      return res.status(400).json({ error: "Admin already exists" });
+    }
 
-          // Create new admin data
-          const adminData = new adminDb({
-            firstname,
-            lastname,
-            email,
-            password: hashedPassword,
-            profile: result.secure_url,  // Cloudinary image URL for profile
-          });
+    if (password !== confirmPassword) {
+      return res.status(400).json({ error: "Password and Confirm Password do not match" });
+    }
 
-          // Save the admin to the database
-          await adminData.save();
-          res.status(200).json(adminData);  // Return the created admin data
-        }
-      }
-    );
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Pipe the file buffer to Cloudinary
-    const bufferStream = new stream.PassThrough();
-    bufferStream.end(file.buffer); // Get the buffer from the Multer memory storage
-    bufferStream.pipe(uploadResult); // Pipe the buffer to Cloudinary
+    // Save admin
+    const adminData = new adminDb({
+      firstname,
+      lastname,
+      email,
+      password: hashedPassword,
+      profile: upload.secure_url, // Cloudinary uploaded URL
+    });
 
+    await adminData.save();
+    res.status(200).json(adminData);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
+
 
 //Login Controler
 exports.Login = async (req, res) => {
@@ -86,6 +59,7 @@ exports.Login = async (req, res) => {
   }
   try {
     const adminValidation = await adminDb.findOne({ email: email });
+   
 
     if (adminValidation) {
       const isMatch = await bcrypt.compare(password, adminValidation.password);

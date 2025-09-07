@@ -9,7 +9,7 @@ const productBrandSchema = new mongoose.Schema({
   
   products: [
     {
-        type:mongoose.Schema.Types.ObjectId,
+        type:Object,
         ref:"productmodels"
     }
   ],

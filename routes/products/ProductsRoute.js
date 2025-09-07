@@ -68,6 +68,8 @@ router.get("/newarival", productControler.NewArival)
 router.post("/reviewproduct/:productid", userAuthentication, productControler.ProductReview)
 
 router.get("/getproductreview/:productid", productControler.GetproductReview)
+/* Get all product review */
+router.get("/getallreview", productControler.GetAllReview)
 
 router.delete("/deleteproductreview/:reviewid", userAuthentication, productControler.DeleteproductReview)
 

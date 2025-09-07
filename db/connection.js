@@ -18,3 +18,9 @@ mongoose
   });
 
   // Listen for unhandled promise rejections globally
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+
+  // Optionally exit process if it's critical
+  process.exit(1);
+});
