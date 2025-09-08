@@ -10,6 +10,8 @@ const cloudinary = require("../../cloudinary/cloudinary");
 exports.Register = async (req, res) => {
   const { firstname, lastname, email, password, confirmPassword } = req.body;
 
+
+
   if (!firstname || !lastname || !email || !password || !confirmPassword || !req.file) {
     return res.status(400).json({ error: "All fields are required" });
   }
@@ -42,7 +44,11 @@ exports.Register = async (req, res) => {
     });
 
     await adminData.save();
-    res.status(200).json(adminData);
+    res.status(200).json({
+      success:true,
+      message:"user created successfully",
+      adminData
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

@@ -79,7 +79,7 @@ exports.GetWishlist = async (req, res) => {
 ////REmove Items From wishList
 exports.RemoveSingleItemFromWishlist = async (req, res) => {
     const { id } = req.params;
-    console.log(id)
+  
     try {
         // Check if the product exists
         const getproduct = await productDb.findOne({ _id: id });

@@ -1,26 +1,28 @@
 const mongoose = require("mongoose");
-const DB = process.env.DATABASE;
 
-mongoose
-  .connect(DB)
-  .then(() => console.log("Database connected"))
-  .catch((err) => {
-    if (
-      err.code === "ENOTFOUND" ||
-      err.message.includes("getaddrinfo ENOTFOUND")
-    ) {
-      console.log(
-        "Network error: Internet connection lost. Please check your connection."
-      );
-    } else {
-      console.log("Error connecting to database");
-    }
-  });
+let isConnected; // Global variable for connection state
 
-  // Listen for unhandled promise rejections globally
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection at:", promise, "reason:", reason);
+const connectDB = async () => {
+  if (isConnected) {
+    console.log("⚡ Using existing MongoDB connection");
+    return;
+  }
 
-  // Optionally exit process if it's critical
-  process.exit(1);
-});
+  try {
+    const conn = await mongoose.connect(process.env.DATABASE, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Timeout if cannot connect
+    });
+
+    isConnected = conn.connections[0].readyState;
+    console.log("✅ MongoDB Connected");
+  } catch (err) {
+    console.error("❌ MongoDB Connection Error:", err.message);
+
+    // Retry after 5s if failed
+    setTimeout(connectDB, 5000);
+  }
+};
+
+module.exports = connectDB;

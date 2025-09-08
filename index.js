@@ -1,44 +1,34 @@
 require("dotenv").config();
-const express = require("express")
+const express = require("express");
+const cors = require("cors");
+const connectDB = require("./db/connection.js");
+
 const app = express();
-const cors = require("cors")
-const port =process.env.PORT||4001;
-require("./db/connection.js")
+const port = process.env.PORT || 4001;
 
-// Configure CORS to allow only the specified origin
+// Connect to MongoDB
+connectDB();
+
+// Configure CORS
 app.use(cors({
-  origin: process.env.FRONTEND_URL,  // Set the specific allowed origin
+  origin: process.env.FRONTEND_URL,  // Allow only your frontend
 }));
-app.use(express.json())
+app.use(express.json());
 
-//admin Routes
-const adminAuthRoutes = require("./routes/Admin/adminAuthroutes.js")
-app.use("/adminauth/api", adminAuthRoutes)
+// Routes
+app.use("/adminauth/api", require("./routes/Admin/adminAuthroutes.js"));
+app.use("/product/api", require("./routes/products/ProductsRoute.js"));
+app.use("/carts/api", require("./routes/Carts/CartsRoute.js"));
+app.use("/wishlist/api", require("./routes/wishList/wishListRoutes.js"));
+app.use("/userauth/api", require("./routes/user/userRoutes.js"));
+app.use("/order/api",require("./routes/Order/OrderRoutes.js"))
+// Add ratings later...
 
-//PRoducts Routes
-const productsRoutes = require("./routes/products/ProductsRoute.js")
-app.use("/product/api", productsRoutes)
-
-
-///Carts Routes////
-const CartRoutes = require("./routes/Carts/CartsRoute.js");
-app.use("/carts/api", CartRoutes)
-
-///wishlist Routes////
-const wishListRoutes = require("./routes/wishList/wishListRoutes");
-app.use("/wishlist/api", wishListRoutes)
-
-////Users Routes
-const userRoutes = require("./routes/user/userRoutes.js")
-app.use("/userauth/api", userRoutes)
-
-///Ratings Routes//
-
-
+// Default route
 app.get("/", (req, res) => {
-    res.status(200).json("server start")
-})
+  res.status(200).json("server start");
+});
 
 app.listen(port, () => {
-    console.log(`server start at ${port}`)
-})
+  console.log(`🚀 Server running on port ${port}`);
+});

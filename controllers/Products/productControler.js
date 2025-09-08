@@ -176,10 +176,17 @@ exports.Addproducts = async (req, res) => {
   }
 };
 
+
+
 exports.findSimilarProducts = async (req, res) => {
   const { productid } = req.params;
 
   try {
+    // Validate ID
+    if (!mongoose.Types.ObjectId.isValid(productid)) {
+      return res.status(400).json({ error: "Invalid product ID" });
+    }
+
     // Find the product by its ID
     const product = await productDb.findById(productid);
     if (!product) {
@@ -189,17 +196,19 @@ exports.findSimilarProducts = async (req, res) => {
     // Define criteria for finding similar products
     const criteria = {
       categoryid: product.categoryid, // Similar category
-      _id: { $ne: productid }, // Exclude the current product ID
+      _id: { $ne: new mongoose.Types.ObjectId(productid) }, // Exclude current product
     };
 
-    // Query the database for similar products
-    const similarProducts = await productDb.find(criteria); // Limit the number of results to 5
+    // Query the database for similar products (limit 5)
+    const similarProducts = await productDb.find(criteria).limit(5);
 
     res.status(200).json(similarProducts);
   } catch (error) {
+    console.error("Error finding similar products:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 ///Delete Products controler
 exports.Deleteproducts = async (req, res) => {
@@ -279,93 +288,74 @@ exports.SearchProducts = async (req, res) => {
 
 ////Get PRoducts
 exports.Getproduct = async (req, res) => {
-  let productquery = productDb.find({});
+  try {
+    let query = {};
 
-  //Filter by category//
-  if (req.query.categoryId !== "all" && req.query.categoryId) {
-    productquery = productquery.find({
-      categoryid: req.query.categoryId,
+    // Filter by category
+    if (req.query.categoryId && req.query.categoryId !== "all") {
+      query.categoryid = req.query.categoryId;
+    }
+
+    // Filter by color
+    if (req.query.color) {
+      query.color = { $regex: req.query.color, $options: "i" };
+    }
+
+    // Filter by brand
+    if (req.query.brand) {
+      query.brand = { $regex: req.query.brand, $options: "i" };
+    }
+
+    // Filter by sizes
+    if (req.query.sizes) {
+      query.sizes = { $regex: req.query.sizes, $options: "i" };
+    }
+
+    // Filter by price range
+    if (req.query.price) {
+      const [min, max] = req.query.price.split("-").map(Number);
+      query.price = { $gte: min, $lte: max };
+    }
+
+    // Pagination defaults
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 20, 1);
+    const skip = (page - 1) * limit;
+
+    // Count products with same filter
+    const count = await productDb.countDocuments(query);
+    const pageCount = Math.ceil(count / limit);
+
+    // Sorting
+    let sort = {};
+    if (req.query.sortBy === "priceLowToHigh") sort.price = 1;
+    else if (req.query.sortBy === "priceHighToLow") sort.price = -1;
+    else if (req.query.sortBy === "newest") sort.createdAt = -1;
+    else if (req.query.sortBy === "oldest") sort.createdAt = 1;
+
+    // Query DB
+    const products = await productDb
+      .find(query)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      status: "success",
+      results: products.length,
+      count,
+      pagination: {
+        currentPage: page,
+        totalPages: pageCount,
+        totalProducts: count,
+        limit,
+      },
+      products,
     });
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
-
-  //Filter by color//
-  if (req.query.color) {
-    productquery = productquery.find({
-      color: { $regex: req.query.color, $options: "i" },
-    });
-  }
-
-  //Filter by brand//
-  if (req.query.brand) {
-   
-    productquery = productquery.find({
-      brand: { $regex: req.query.brand, $options: "i" },
-    });
-  }
-
-  //Filter by sizes//
-  if (req.query.sizes) {
-   
-    productquery = productquery.find({
-      sizes: { $regex: req.query.sizes, $options: "i" },
-    });
-  }
-  //Filter by price range//
-  if (req.query.price) {
-    const priceRange = req.query.price.split("-");
-    // console.log("currentpricerange:",priceRange)
-
-    productquery = productquery.find({
-      price: { $gte: priceRange[0], $lte: priceRange[1] },
-    });
-  }
-
-  ///sort by//
-  if (req.query.sortBy === "priceLowToHigh") {
-    productquery = productquery.sort({ price: 1 }); // 1 for ascending order
-  } else if (req.query.sortBy === "priceHighToLow") {
-    productquery = productquery.sort({ price: -1 }); // -1 for descending order
-  }
-
-  // Sort by creation date
-  if (req.query.sortBy === "newest") {
-    productquery = productquery.sort({ createdAt: -1 }); // -1 for descending order
-  } else if (req.query.sortBy === "oldest") {
-    productquery = productquery.sort({ createdAt: 1 }); // 1 for ascending order
-  }
-
-  /// products pagination//
-  //page
-  //limi//
-  //startIndex//
-  //endindex//
-  ///totalproduct/
-  const page = parseInt(req.query.page) ? parseInt(req.query.page) : 1;
-  //limit
-  const limit = parseInt(req.query.limit) ? parseInt(req.query.limit) : 20;
-
-  ///startIndex//
-  const skip = (page - 1) * limit;
-  //endindex//
-
-  ///totalproduct//
-  const count = await productDb.countDocuments();
-  const pageCount = Math.ceil(count / limit);
-  productquery = productquery.skip(skip).limit(limit);
-
-  ////await the query//
-  const products = await productquery;
-  res.json({
-    status: "success",
-    results: products.length,
-    count,
-    Pagination: {
-      totalProducts: count,
-      pageCount,
-    },
-    message: "products fetch sucessfully",
-    products,
-  });
 };
 
 ///reset product filter///
