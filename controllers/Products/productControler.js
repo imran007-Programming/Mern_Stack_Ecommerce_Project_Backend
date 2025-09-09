@@ -290,6 +290,7 @@ exports.SearchProducts = async (req, res) => {
 exports.Getproduct = async (req, res) => {
   try {
     let query = {};
+   
 
     // Filter by category
     if (req.query.categoryId && req.query.categoryId !== "all") {
@@ -319,7 +320,8 @@ exports.Getproduct = async (req, res) => {
 
     // Pagination defaults
     const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const limit = Math.max(parseInt(req.query.limit) || 20, 1);
+
+    const limit = Math.max(parseInt(req.query.limit) || 10, 1);
     const skip = (page - 1) * limit;
 
     // Count products with same filter
