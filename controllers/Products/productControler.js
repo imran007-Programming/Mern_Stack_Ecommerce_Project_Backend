@@ -7,7 +7,7 @@ const brandDb = require("../../model/product/productBrandmodal");
 const { ObjectId } = require("mongodb");
 const bannerDb = require("../../model/BannerImages/BannerImages");
 const { default: mongoose } = require("mongoose");
-const { deleteFromCloudinary } = require('../../cloudinary/cloudinary'); 
+const { deleteFromCloudinary } = require("../../cloudinary/cloudinary");
 exports.Addcategory = async (req, res) => {
   try {
     const { categoryName, description } = req.body;
@@ -150,7 +150,7 @@ exports.Addproducts = async (req, res) => {
       brand,
       images: imageUrlList,
     });
-   
+
     const savedProduct = await newProduct.save();
 
     // 2. Push the product into the category's "products" array
@@ -175,8 +175,6 @@ exports.Addproducts = async (req, res) => {
     res.status(400).json({ error: error.message });
   }
 };
-
-
 
 exports.findSimilarProducts = async (req, res) => {
   const { productid } = req.params;
@@ -208,7 +206,6 @@ exports.findSimilarProducts = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
 
 ///Delete Products controler
 exports.Deleteproducts = async (req, res) => {
@@ -260,8 +257,6 @@ exports.Deleteproducts = async (req, res) => {
   }
 };
 
-
-
 ///Search products///
 exports.SearchProducts = async (req, res) => {
   try {
@@ -290,7 +285,6 @@ exports.SearchProducts = async (req, res) => {
 exports.Getproduct = async (req, res) => {
   try {
     let query = {};
-   
 
     // Filter by category
     if (req.query.categoryId && req.query.categoryId !== "all") {
@@ -490,39 +484,34 @@ exports.updateProduct = async (req, res) => {
 
 ///delete images//
 
-
-
 exports.deleteimages = async (req, res) => {
   try {
     const { productId, imageUrl } = req.body;
 
     // Extract public ID properly
-    const parts = imageUrl.split('/');
-    const fileName = parts.pop().split('.')[0];
-    const folderPath = parts.slice(parts.indexOf('productimages')).join('/');
+    const parts = imageUrl.split("/");
+    const fileName = parts.pop().split(".")[0];
+    const folderPath = parts.slice(parts.indexOf("productimages")).join("/");
     const publicId = `${folderPath}/${fileName}`;
 
     // Delete from Cloudinary
     await deleteFromCloudinary(publicId);
 
-
     // Update product
     const product = await productDb.findById(productId);
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      return res.status(404).json({ error: "Product not found" });
     }
 
     product.images = product.images.filter((img) => img !== imageUrl);
     await product.save();
 
-    res.status(200).json({ message: 'Image deleted successfully' });
+    res.status(200).json({ message: "Image deleted successfully" });
   } catch (error) {
-    console.error('Error deleting image:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error("Error deleting image:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
-
-
 
 //// single Product Controller
 exports.GetSingleProduct = async (req, res) => {
@@ -618,7 +607,6 @@ exports.addBannerImages = async (req, res) => {
     //   imageUrlList.push(result.secure_url);
     // }
 
-
     const imageUrlList = [];
 
     for (let i = 0; i < file.length; i++) {
@@ -629,7 +617,6 @@ exports.addBannerImages = async (req, res) => {
       const result = await cloudinary.uploadToCloudinary(fileBuffer, filename);
       imageUrlList.push(result.secure_url);
     }
-
 
     const addBanner = new bannerDb({
       images: imageUrlList,
@@ -648,5 +635,42 @@ exports.getBannerImages = async (req, res) => {
     res.status(200).json(getAllbannerImages);
   } catch (error) {
     res.status(400).json(error);
+  }
+};
+
+exports.deleteBannerimages = async (req, res) => {
+  try {
+    const { bannerId, imageUrl } = req.body;
+
+    // Extract public ID properly
+    const parts = imageUrl.split("/");
+    const fileName = parts.pop().split(".")[0];
+    const folderPath = parts.slice(parts.indexOf("productimages")).join("/");
+    const publicId = `${folderPath}/${fileName}`;
+
+    // Delete from Cloudinary
+    await deleteFromCloudinary(publicId);
+
+    // Find banner doc
+    const bannerImages = await bannerDb.findById(bannerId);
+    if (!bannerImages) {
+      return res.status(404).json({ error: "Banner not found" });
+    }
+
+    // Remove image from array
+    bannerImages.images = bannerImages.images.filter((img) => img !== imageUrl);
+
+    if (bannerImages.images.length === 0) {
+      // If no images left → delete the entire doc
+      await bannerDb.findByIdAndDelete(bannerId);
+      return res.status(200).json({ message: "Banner deleted successfully (no images left)" });
+    } else {
+      // Otherwise just save updated images
+      await bannerImages.save();
+      return res.status(200).json({ message: "Image deleted successfully" });
+    }
+  } catch (error) {
+    console.error("Error deleting image:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

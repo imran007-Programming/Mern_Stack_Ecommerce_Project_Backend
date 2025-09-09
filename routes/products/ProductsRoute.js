@@ -34,6 +34,9 @@ router.put("/updateproduct/:productId", [adminAuthentication, productupload.arra
 
 // DELETE route for deleting an image
 router.delete("/deleteimage", adminAuthentication, productControler.deleteimages);
+/* delete banner images */
+router.delete("/deletebannerImages", adminAuthentication, productControler.deleteBannerimages);
+
 
 ///Add baner images///
 router.post("/addbannerimage",[adminAuthentication,productupload.array("files")],productControler.addBannerImages)
