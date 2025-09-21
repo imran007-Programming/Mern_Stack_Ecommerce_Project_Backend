@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 
 let isConnected; // Global variable for connection state
-console.log("DATABASE ENV:", process.env.DATABASE);
 
 const connectDB = async () => {
   if (isConnected) {
@@ -10,6 +9,13 @@ const connectDB = async () => {
   }
 
   try {
+    // Debug first
+    console.log("DATABASE ENV:", process.env.DATABASE);
+
+    if (!process.env.DATABASE) {
+      throw new Error("❌ DATABASE environment variable is not set!");
+    }
+
     const conn = await mongoose.connect(process.env.DATABASE, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
