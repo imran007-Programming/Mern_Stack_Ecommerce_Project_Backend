@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 let isConnected; // Global variable for connection state
+console.log("DATABASE ENV:", process.env.DATABASE);
 
 const connectDB = async () => {
   if (isConnected) {
