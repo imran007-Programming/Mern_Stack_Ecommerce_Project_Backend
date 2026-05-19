@@ -42,10 +42,14 @@ server.listen(port, () => {
   // 👇 Start keep-alive ONLY after server is up
   const keepAliveInterval = setInterval(() => {
     axios
-      .get("https://mern-stack-ecommerce-project-backend.onrender.com")
+      .get("https://mern-stack-ecommerce-project-backend-1.onrender.com")
       .then(() => console.log("🔔 Keep-alive ping sent"))
       .catch((err) => console.error(`❌ Keep-alive failed: ${err.message}`));
+<<<<<<< HEAD
   }, 780000);
+=======
+  }, 78000);
+>>>>>>> dbc2d49960efeffb45dd80c874a7e4c273fd36fb
 
   // 👇 Clean up on shutdown
   process.on("SIGTERM", () => {
