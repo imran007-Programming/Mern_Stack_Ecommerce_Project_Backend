@@ -45,7 +45,7 @@ server.listen(port, () => {
       .get("https://mern-stack-ecommerce-project-backend.onrender.com")
       .then(() => console.log("🔔 Keep-alive ping sent"))
       .catch((err) => console.error(`❌ Keep-alive failed: ${err.message}`));
-  }, 30000);
+  }, 780000);
 
   // 👇 Clean up on shutdown
   process.on("SIGTERM", () => {
