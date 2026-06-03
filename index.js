@@ -12,13 +12,19 @@ const port = process.env.PORT || 4001;
 connectDB();
 
 // Middleware
-app.use(cors({ origin: process.env.FRONTEND_URL }));
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "https://emart-frontend-main.vercel.app",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true,
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Create HTTP server (needed for Socket.io in local dev)
 const server = http.createServer(app);
-initSocket(server);
+if (!process.env.VERCEL) {
+  initSocket(server);
+}
 
 // Routes
 app.use("/adminauth/api", require("./routes/Admin/adminAuthroutes.js"));
