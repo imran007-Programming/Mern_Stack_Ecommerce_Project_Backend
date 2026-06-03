@@ -83,6 +83,32 @@ exports.getsingleBrand = async (req, res) => {
   }
 };
 
+// Update Brand
+exports.UpdateBrand = async (req, res) => {
+  const { brandId } = req.params;
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: "Brand name is required" });
+  try {
+    const updated = await brandDb.findByIdAndUpdate(brandId, { name }, { new: true });
+    if (!updated) return res.status(404).json({ error: "Brand not found" });
+    res.status(200).json({ success: true, message: "Brand updated", brand: updated });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Delete Brand
+exports.DeleteBrand = async (req, res) => {
+  const { brandId } = req.params;
+  try {
+    const deleted = await brandDb.findByIdAndDelete(brandId);
+    if (!deleted) return res.status(404).json({ error: "Brand not found" });
+    res.status(200).json({ success: true, message: "Brand deleted" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 ///getCategory//
 exports.Getcategory = async (req, res) => {
   try {
@@ -90,6 +116,44 @@ exports.Getcategory = async (req, res) => {
     res.status(200).json(getAllCategory);
   } catch (error) {
     res.status(400).json(error);
+  }
+};
+
+// Update Category
+exports.UpdateCategory = async (req, res) => {
+  const { categoryId } = req.params;
+  const { categoryName, description } = req.body;
+
+  try {
+    const updateData = {};
+    if (categoryName) updateData.categoryName = categoryName;
+    if (description) updateData.description = description;
+
+    // If new image uploaded
+    if (req.file) {
+      const filename = `category-${Date.now()}-${req.file.originalname}`;
+      const upload = await cloudinary.uploadToCloudinary(req.file.buffer, filename);
+      updateData.catimage = upload.secure_url;
+    }
+
+    const updated = await categorydb.findByIdAndUpdate(categoryId, updateData, { new: true });
+    if (!updated) return res.status(404).json({ error: "Category not found" });
+
+    res.status(200).json({ success: true, message: "Category updated", category: updated });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Delete Category
+exports.DeleteCategory = async (req, res) => {
+  const { categoryId } = req.params;
+  try {
+    const deleted = await categorydb.findByIdAndDelete(categoryId);
+    if (!deleted) return res.status(404).json({ error: "Category not found" });
+    res.status(200).json({ success: true, message: "Category deleted" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 };
 

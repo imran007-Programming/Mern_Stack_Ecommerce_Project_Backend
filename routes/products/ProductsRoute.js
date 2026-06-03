@@ -17,6 +17,10 @@ router.post("/bulkaddbrands", adminAuthentication, productControler.BulkAddBrand
 router.get("/getbrand",productControler.getBrand);
 ///get a single brand//
 router.get("/getbrand/:id",productControler.getsingleBrand);
+// Update brand
+router.put("/updatebrand/:brandId", adminAuthentication, productControler.UpdateBrand);
+// Delete brand
+router.delete("/deletebrand/:brandId", adminAuthentication, productControler.DeleteBrand);
 
 
 ///Category Routes
@@ -27,6 +31,10 @@ router.post("/addcategory", adminAuthentication, categoryupload.single("file"), 
 router.post("/bulkaddcategories", adminAuthentication, productControler.BulkAddCategories);
 // 2:(_Get_Categoryes)
 router.get("/getcategory", productControler.Getcategory)
+// Update Category
+router.put("/updatecategory/:categoryId", adminAuthentication, categoryupload.single("file"), productControler.UpdateCategory)
+// Delete Category
+router.delete("/deletecategory/:categoryId", adminAuthentication, productControler.DeleteCategory)
 
 ///product Routes
 // 1:(_Add_Product)

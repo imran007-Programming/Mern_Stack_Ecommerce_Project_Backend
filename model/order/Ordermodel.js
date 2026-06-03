@@ -64,7 +64,7 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ["bkash", "cod", "card"],
+    enum: ["bkash", "cod", "card", "sslcommerz"],
     default: "cod",
     required: true,
   },
@@ -82,6 +82,15 @@ const orderSchema = new mongoose.Schema({
   cancelReason: {
     type: String,
     default: "",
+  },
+  transactionId: {
+    type: String,
+    default: "",
+  },
+  paymentStatus: {
+    type: String,
+    enum: ["pending", "paid", "failed"],
+    default: "pending",
   },
 }, { timestamps: true });
 

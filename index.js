@@ -14,6 +14,7 @@ connectDB();
 // Middleware
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Create HTTP server (needed for Socket.io in local dev)
 const server = http.createServer(app);
