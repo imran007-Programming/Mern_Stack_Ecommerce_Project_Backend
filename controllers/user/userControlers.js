@@ -261,3 +261,121 @@ exports.Deleteuser = async (req, res) => {
     res.status(400).json(error)
   }
 }
+
+////Update user profile///
+exports.UpdateProfile = async (req, res) => {
+  const { firstname, lastname, email } = req.body;
+  try {
+    const updateData = {};
+    if (firstname) updateData.firstname = firstname;
+    if (lastname) updateData.lastname = lastname;
+    if (email) updateData.email = email;
+
+    // If a new profile image is uploaded
+    if (req.file) {
+      const filename = `user-${Date.now()}.${req.file.originalname.split(".").pop()}`;
+      const upload = await cloudinary.uploadToCloudinary(req.file.buffer, filename);
+      updateData.userprofile = upload.secure_url;
+    }
+
+    const updatedUser = await userDb.findByIdAndUpdate(
+      req.userId,
+      updateData,
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+////Update user address///
+exports.UpdateAddress = async (req, res) => {
+  const { city, zone, area, street, phone } = req.body;
+  try {
+    const updatedUser = await userDb.findByIdAndUpdate(
+      req.userId,
+      {
+        address: { city, zone, area, street, phone },
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      address: updatedUser.address,
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+////Get user address///
+exports.GetAddress = async (req, res) => {
+  try {
+    const user = await userDb.findById(req.userId).select("address");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.status(200).json({
+      success: true,
+      address: user.address || {},
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+////Change password///
+exports.ChangePassword = async (req, res) => {
+  const { currentPassword, newPassword, confirmNewPassword } = req.body;
+
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
+
+  if (newPassword !== confirmNewPassword) {
+    return res.status(400).json({ error: "New passwords do not match" });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+
+  try {
+    const user = await userDb.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ error: "Current password is incorrect" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+    user.password = hashedPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};

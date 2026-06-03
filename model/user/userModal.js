@@ -41,6 +41,14 @@ const userSchema = new mongoose.Schema({
   ///for forgotpassword
   verifytoken: {
     type: String
+  },
+  ///user address
+  address: {
+    city: { type: String, default: "" },
+    zone: { type: String, default: "" },
+    area: { type: String, default: "" },
+    street: { type: String, default: "" },
+    phone: { type: String, default: "" },
   }
 }, { timestamps: true });
 

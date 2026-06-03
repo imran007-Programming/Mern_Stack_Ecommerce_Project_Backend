@@ -2,8 +2,6 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
-const axios = require("axios");
-const { Server } = require("socket.io");
 const connectDB = require("./db/connection.js");
 const { initSocket } = require("./socket.js");
 
@@ -17,9 +15,8 @@ connectDB();
 app.use(cors({ origin: process.env.FRONTEND_URL }));
 app.use(express.json());
 
-// Create HTTP server
+// Create HTTP server (needed for Socket.io in local dev)
 const server = http.createServer(app);
-/* initialize socket io */
 initSocket(server);
 
 // Routes
@@ -35,26 +32,11 @@ app.get("/", (req, res) => {
   res.status(200).json("server start");
 });
 
-// Listen on HTTP server
-server.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
-
-  // 👇 Start keep-alive ONLY after server is up
-  // const keepAliveInterval = setInterval(() => {
-  //   axios
-  //     .get("https://mern-stack-ecommerce-project-backend-1.onrender.com")
-  //     .then(() => console.log("🔔 Keep-alive ping sent"))
-  //     .catch((err) => console.error(`❌ Keep-alive failed: ${err.message}`));
-  // }, 780000);
-
-  // 👇 Clean up on shutdown
-  process.on("SIGTERM", () => {
-    clearInterval(keepAliveInterval);
-    server.close(() => process.exit(0));
+// Only start listening in local/non-Vercel environments
+if (!process.env.VERCEL) {
+  server.listen(port, () => {
+    console.log(`🚀 Server running on port ${port}`);
   });
+}
 
-  process.on("SIGINT", () => {
-    clearInterval(keepAliveInterval);
-    server.close(() => process.exit(0));
-  });
-});
+module.exports = app;

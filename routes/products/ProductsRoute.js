@@ -11,6 +11,8 @@ const categoryupload = require("../../multerconfig/Category/categoryStorageConfi
 
 ///Add A brand//
 router.post("/addbrand", adminAuthentication,productControler.AddBrand);
+// Bulk Add Brands
+router.post("/bulkaddbrands", adminAuthentication, productControler.BulkAddBrands);
 ///get brand//
 router.get("/getbrand",productControler.getBrand);
 ///get a single brand//
@@ -21,12 +23,17 @@ router.get("/getbrand/:id",productControler.getsingleBrand);
 
 //(Add A Category)
 router.post("/addcategory", adminAuthentication, categoryupload.single("file"), productControler.Addcategory);
+// Bulk Add Categories
+router.post("/bulkaddcategories", adminAuthentication, productControler.BulkAddCategories);
 // 2:(_Get_Categoryes)
 router.get("/getcategory", productControler.Getcategory)
 
 ///product Routes
 // 1:(_Add_Product)
 router.post("/addproducts", [adminAuthentication, productupload.array("files")], productControler.Addproducts)
+
+// Bulk Add Products
+router.post("/bulkaddproducts", adminAuthentication, productControler.BulkAddProducts)
 
 ///updated a product//
 

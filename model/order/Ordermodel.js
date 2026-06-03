@@ -74,7 +74,16 @@ const orderSchema = new mongoose.Schema({
   discount: {
     type: Number,
   },
-});
+  status: {
+    type: String,
+    enum: ["pending", "processing", "shipped", "delivered", "canceled"],
+    default: "pending",
+  },
+  cancelReason: {
+    type: String,
+    default: "",
+  },
+}, { timestamps: true });
 
 const orderDb = new mongoose.model("orderModels", orderSchema);
 module.exports = orderDb;

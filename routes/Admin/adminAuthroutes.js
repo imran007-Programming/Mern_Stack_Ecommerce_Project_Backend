@@ -15,5 +15,9 @@ router.post("/login",adminAuthControler.Login);
 router.get("/adminverify",adminAuthentication, adminAuthControler.Adminverify)
 /// Logout 
 router.get("/logout",adminAuthentication,adminAuthControler.Logout)
+/// Update Name
+router.put("/updatename", adminAuthentication, adminAuthControler.UpdateName)
+/// Change Password
+router.put("/changepassword", adminAuthentication, adminAuthControler.ChangePassword)
 
 module.exports = router;

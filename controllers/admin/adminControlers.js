@@ -112,3 +112,50 @@ exports.Logout = async (req, res) => {
     res.status(400).json(error);
   }
 };
+
+// Admin Update Name
+exports.UpdateName = async (req, res) => {
+  const { firstname, lastname } = req.body;
+  try {
+    const updateData = {};
+    if (firstname) updateData.firstname = firstname;
+    if (lastname) updateData.lastname = lastname;
+
+    const updated = await adminDb.findByIdAndUpdate(req.userId, updateData, { new: true });
+    if (!updated) return res.status(404).json({ error: "Admin not found" });
+
+    res.status(200).json({ success: true, message: "Name updated", admin: updated });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Admin Change Password
+exports.ChangePassword = async (req, res) => {
+  const { currentPassword, newPassword, confirmNewPassword } = req.body;
+
+  if (!currentPassword || !newPassword || !confirmNewPassword) {
+    return res.status(400).json({ error: "All fields are required" });
+  }
+  if (newPassword !== confirmNewPassword) {
+    return res.status(400).json({ error: "New passwords do not match" });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  }
+
+  try {
+    const admin = await adminDb.findById(req.userId);
+    if (!admin) return res.status(404).json({ error: "Admin not found" });
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) return res.status(400).json({ error: "Current password is incorrect" });
+
+    admin.password = await bcrypt.hash(newPassword, 12);
+    await admin.save();
+
+    res.status(200).json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};

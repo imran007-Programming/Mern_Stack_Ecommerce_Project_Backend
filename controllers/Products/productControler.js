@@ -93,6 +93,96 @@ exports.Getcategory = async (req, res) => {
   }
 };
 
+// Bulk Add Brands
+exports.BulkAddBrands = async (req, res) => {
+  try {
+    const { brands } = req.body;
+    if (!brands || !Array.isArray(brands) || brands.length === 0) {
+      return res.status(400).json({ error: "Brands array is required" });
+    }
+
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (let i = 0; i < brands.length; i++) {
+      const name = typeof brands[i] === "string" ? brands[i] : brands[i].name;
+      if (!name) {
+        results.failed++;
+        results.errors.push({ row: i + 1, error: "Brand name is required" });
+        continue;
+      }
+      try {
+        const exists = await brandDb.findOne({ name });
+        if (exists) {
+          results.failed++;
+          results.errors.push({ row: i + 1, error: `"${name}" already exists` });
+          continue;
+        }
+        const newBrand = new brandDb({ name });
+        await newBrand.save();
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ row: i + 1, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk insert: ${results.success} added, ${results.failed} failed`,
+      results,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Bulk Add Categories
+exports.BulkAddCategories = async (req, res) => {
+  try {
+    const { categories } = req.body;
+    if (!categories || !Array.isArray(categories) || categories.length === 0) {
+      return res.status(400).json({ error: "Categories array is required" });
+    }
+
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (let i = 0; i < categories.length; i++) {
+      const { categoryName, description, catimage } = categories[i];
+      if (!categoryName || !description) {
+        results.failed++;
+        results.errors.push({ row: i + 1, error: `Missing fields for "${categoryName || "unnamed"}"` });
+        continue;
+      }
+      try {
+        const exists = await categorydb.findOne({ categoryName });
+        if (exists) {
+          results.failed++;
+          results.errors.push({ row: i + 1, error: `"${categoryName}" already exists` });
+          continue;
+        }
+        const newCat = new categorydb({
+          categoryName,
+          description,
+          catimage: catimage || "https://via.placeholder.com/300",
+        });
+        await newCat.save();
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ row: i + 1, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk insert: ${results.success} added, ${results.failed} failed`,
+      results,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 ////Addproduct
 exports.Addproducts = async (req, res) => {
   const { categoryid } = req.query;
@@ -173,6 +263,68 @@ exports.Addproducts = async (req, res) => {
     res.status(200).json(savedProduct);
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+};
+
+// Bulk Add Products (CSV/JSON)
+exports.BulkAddProducts = async (req, res) => {
+  try {
+    const { products } = req.body;
+
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: "Products array is required" });
+    }
+
+    const results = { success: 0, failed: 0, errors: [] };
+
+    for (let i = 0; i < products.length; i++) {
+      const { productName, price, discount, quantity, description, type, sizes, colors, brand, categoryid, images } = products[i];
+
+      // Validate required fields
+      if (!productName || !price || !discount || !quantity || !description || !type || !brand || !categoryid) {
+        results.failed++;
+        results.errors.push({ row: i + 1, error: `Missing required fields for "${productName || 'unnamed'}"` });
+        continue;
+      }
+
+      try {
+        const newProduct = new productDb({
+          productName,
+          price: Number(price),
+          discount: Number(discount),
+          quantity: Number(quantity),
+          description,
+          type,
+          sizes: Array.isArray(sizes) ? sizes : (sizes ? sizes.split(",").map(s => s.trim()) : []),
+          colors: Array.isArray(colors) ? colors : (colors ? colors.split(",").map(c => c.trim()) : []),
+          brand,
+          categoryid,
+          images: Array.isArray(images) ? images : (images ? images.split(",").map(img => img.trim()) : ["https://via.placeholder.com/300"]),
+        });
+
+        const savedProduct = await newProduct.save();
+
+        // Push into category
+        await categorydb.findByIdAndUpdate(
+          categoryid,
+          { $push: { products: savedProduct }, $addToSet: { brands: brand } },
+          { new: true }
+        );
+
+        results.success++;
+      } catch (err) {
+        results.failed++;
+        results.errors.push({ row: i + 1, error: err.message });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk insert complete: ${results.success} added, ${results.failed} failed`,
+      results,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };
 
